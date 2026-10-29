@@ -3,11 +3,11 @@ import { Check, X } from "lucide-react";
 import type { CloudAccountState, CloudPlanSnapshot } from "../../electron/cloud-account.mjs";
 import type { CloudOffer } from "../../electron/cloud-home.mjs";
 import type { DesktopNoticesBridge, DesktopNoticesState } from "../../electron/desktop-prefs.mjs";
-import { analyticsChoiceKnown, identifyEmail, track } from "@/lib/analytics";
+import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 import { buyOfferAllowed, cloudIntroView, cloudPlanLabel, cloudPlanLine, cloudPlanView, moneyBackLine, trialRunning, usd, type CloudPlanView, type CloudSource } from "@/lib/cloud-plan";
 import { t } from "@/lib/i18n";
-import { cloudPlanFromAccount, cloudPlanFromSnapshot, type CloudPlanFacts } from "@/lib/usage-snapshot";
+import { cloudPlanFromAccount, cloudPlanFromSnapshot, type CloudPlanFacts } from "@/lib/cloud-plan-facts";
 import { NightCard } from "./cloud-buy/NightCard";
 import { CLOSE, ON_NIGHT, PRIMARY, QUIET, SHEET, Tag, TAG_ON_NIGHT } from "./cloud-buy/parts";
 import { NotNowButton } from "./NoticeCard";
@@ -103,10 +103,7 @@ export function useDesktopNotices(desktop: DesktopNoticesBridge | undefined): De
   return desktop ? answer : null;
 }
 
-const CLICKS: ReadonlySet<CloudProPopupAction> = new Set(["upgrade", "manage", "see_plans"]);
-
 export function reportCloudProPopup(action: CloudProPopupAction, who: Who, page: CloudProPopupPage) {
-  if (who.email && CLICKS.has(action) && analyticsChoiceKnown()) identifyEmail(who.email);
   track("cloud_pro_popup", { action, plan: who.plan, signed_in: who.signedIn, page });
 }
 

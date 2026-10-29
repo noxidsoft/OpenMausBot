@@ -4,7 +4,6 @@ import { t } from "@/lib/i18n";
 import { appVersion } from "@/lib/app-links";
 import type { LocaleKey } from "@/locales";
 import { brand } from "../lib/brand";
-import { AnalyticsRow } from "./AnalyticsRow";
 import { UpdatesConsentRow } from "./UpdatesConsent";
 import { OpenAtLoginRow } from "./OpenAtLoginRow";
 import { DefaultBotSidebarRow } from "./DefaultBotControls";
@@ -79,7 +78,6 @@ export function SimpleGeneralPage({ has, peopleOpen, onLooks }: { has: Has; peop
             <OpenAtLoginRow simple />
             <DefaultBotSidebarRow simple />
             <TalkShortcutRow />
-            <AnalyticsRow simple />
           </SettingsRows>
         </SettingsGroup>
       )}

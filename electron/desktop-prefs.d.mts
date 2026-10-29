@@ -14,13 +14,6 @@ export interface DesktopNoticesBridge {
   /** True the first time today the notice counts as shown on this desktop. */
   shown(id: string): Promise<boolean>;
 }
-/** The desktop's own switch, the same on every port its page is served from. */
-export interface DesktopAnalyticsBridge {
-  /** null until a choice is saved; a server's page is told only false, when this desktop turned analytics off. */
-  enabled(): boolean | null;
-  /** This computer's page only. */
-  set?(enabled: boolean): Promise<void>;
-}
 /** The app's language on this computer, one pick for every page its window shows. */
 export interface DesktopLanguageBridge {
   /** A locale code, "" to follow the system, or null until one is picked on this computer. */
@@ -33,8 +26,6 @@ export interface DesktopPrefs {
   seen(): string[];
   markSeen(id: string): void;
   shown(id: string): boolean;
-  analytics(): boolean | null;
-  setAnalytics(enabled: boolean): void;
   language(): string | null;
   /** False for anything that is not a locale code or "". */
   setLanguage(language: unknown): boolean;

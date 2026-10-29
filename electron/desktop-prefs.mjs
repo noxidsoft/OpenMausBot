@@ -1,5 +1,5 @@
 // What this desktop keeps whatever page its window shows, whichever port its own page is served on: the notices it
-// has shown, its usage-analytics switch, the app's language and its answer to the product-updates email question.
+// has shown, the app's language and its answer to the product-updates email question.
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import { localDay } from "./cloud-trial-notice.mjs";
@@ -19,7 +19,7 @@ const isLanguage = value => typeof value === "string" && value.length <= 24 && L
 const CHAT_ID = /^[\w-]{1,128}$/;
 const INSTALL_ID = /^[A-Za-z0-9_-]{22,64}$/;
 
-/** Security: a write that fails (a full disk, a kill mid-write) leaves the last whole record, analytics opt-out included.
+/** Security: a write that fails (a full disk, a kill mid-write) leaves the last whole record.
  * A file another tool saved with a byte-order mark (Notepad on Windows) still reads. */
 export function jsonFile(file, files = fs) {
   return {
@@ -51,8 +51,7 @@ function parse(raw) {
   const quickAsks = record.quickAsks && typeof record.quickAsks === "object" && !Array.isArray(record.quickAsks)
     ? Object.fromEntries(Object.entries(record.quickAsks).flatMap(([server, chat]) => { const parsed = parseChat(chat); return parsed ? [[server, parsed]] : []; }))
     : {};
-  return { seen, shown, ...(typeof record.analytics === "boolean" ? { analytics: record.analytics } : {}),
-    ...(isLanguage(record.language) ? { language: record.language } : {}),
+  return { seen, shown, ...(isLanguage(record.language) ? { language: record.language } : {}),
     ...(typeof record.installId === "string" && INSTALL_ID.test(record.installId) ? { installId: record.installId } : {}),
     ...(updatesConsent ? { updatesConsent } : {}),
     ...(typeof record.talkShortcut === "boolean" ? { talkShortcut: record.talkShortcut } : {}),
@@ -83,9 +82,6 @@ export function createDesktopPrefs({ read, write, now = Date.now }) {
       save({ ...saved, shown: { ...saved.shown, [id]: day } });
       return true;
     },
-    /** null until a choice is saved. */
-    analytics: () => current().analytics ?? null,
-    setAnalytics(enabled) { save({ ...current(), analytics: enabled === true }); },
     /** null until a language is picked; "" is a pick too: follow the system. */
     language: () => current().language ?? null,
     setLanguage(language) {
@@ -157,14 +153,6 @@ export function registerDesktopPrefs({ prefs: given, ipcMain, read, write, page,
   ipcMain.handle("desktop-notices:shown", from("desktop-notices:shown", ANY, (_, id) => store().shown(id)));
   // A first run's default name for the profile: this computer's own page only, never a server's.
   ipcMain.handle("desktop-profile:system-name", from("desktop-profile:system-name", ["local"], () => systemName()));
-  // Security: a server's page learns only that this desktop turned analytics off, never that it is on.
-  ipcMain.on("desktop-analytics:read", event => {
-    try {
-      const asking = page(event), saved = store().analytics();
-      event.returnValue = asking === "local" ? saved : asking && saved === false ? false : null;
-    } catch { event.returnValue = null; }
-  });
-  ipcMain.handle("desktop-analytics:set", from("desktop-analytics:set", ["local"], (_, enabled) => { store().setAnalytics(enabled === true); }));
   ipcMain.on("desktop-language:read", event => {
     try { event.returnValue = page(event) ? store().language() : null; } catch { event.returnValue = null; }
   });

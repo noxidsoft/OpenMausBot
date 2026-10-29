@@ -24,7 +24,7 @@ vi.mock("react", async original => ({ ...await original<typeof import("react")>(
 }));
 vi.mock("@/state/store", () => ({ useStore: () => ({ state: f.state, dispatch: f.dispatch }), api: vi.fn().mockResolvedValue({}),
   CLOUD_LINK_SETTINGS: { type: "toggleAppSettings", open: true, section: "cloudAccount", cloudLink: true } }));
-vi.mock("@/lib/analytics", () => ({ emailGateDone: () => false, track: vi.fn(), identifyEmail: vi.fn(), analyticsChoiceKnown: () => true }));
+vi.mock("@/lib/analytics", () => ({ emailGateDone: () => false, track: vi.fn() }));
 vi.mock("@/lib/updater", () => ({ useUpdaterState: () => f.updater }));
 vi.mock("./cloud-buy/NightCard", () => ({ NightCard: ({ children }: { children: unknown }) => children }));
 // Who MausBot belongs to: unknown (as before the session answers) unless a test says otherwise.
@@ -34,7 +34,7 @@ vi.mock("@/components/EngineLibrary", () => ({ engineReady: (instance: { snapsho
   instance.snapshot.state === "available" && instance.snapshot.authenticated !== false }));
 import { AppNotices } from "./AppNotices";
 import { CLOUD_PRO_UPDATE_NOTICE, PRODUCT_HUNT_NOTICE, PRODUCT_HUNT_UNTIL, PRODUCT_HUNT_URL, CLOUD_INTRO, localDay, STAR_NOTICE } from "@/lib/notices";
-import { identifyEmail, track } from "@/lib/analytics";
+import { track } from "@/lib/analytics";
 import { ADVANCED_MODE_KEY, setAdvancedMode } from "@/lib/interface-mode";
 import { SIMPLE_MODE_PROMPT_KEY } from "@/lib/simple-mode-prompt";
 import { api } from "@/state/store";
@@ -430,7 +430,6 @@ describe("the Cloud Pro popup after the update", () => {
   let modal: boolean;
   const popupEvents = (action: string) => vi.mocked(track).mock.calls.filter(([event, props]) => event === "cloud_pro_popup" && (props as { action?: string }).action === action);
   const event = (action: string, plan: string, signedIn: boolean, page: string) => ["cloud_pro_popup", { action, plan, signed_in: signedIn, page }];
-  const lastOrder = (calls: { mock: { invocationCallOrder: number[] } }) => calls.mock.invocationCallOrder.at(-1)!;
   const seenOnDesktop = () => desk.saved?.seen ?? [];
   const SETTINGS = { type: "toggleAppSettings", open: true, section: "cloudAccount" };
   const fresh = () => { desk = desktopMachine(); storage.delete(ID); f.state.config.onboarding.hintsSeen = withTourFinished(undefined); f.state.routines = []; };
@@ -475,7 +474,6 @@ describe("the Cloud Pro popup after the update", () => {
     press("Start free trial");
     expect(f.dispatch).toHaveBeenCalledWith({ type: "openCloudAdd", source: "update_popup" });
     expect(popupEvents("upgrade")).toEqual([event("upgrade", "none", false, "local")]);
-    expect(identifyEmail).not.toHaveBeenCalled();
     await flush(); expect(seenOnDesktop()).toEqual([ID]);
     expect(render()).toBe("");
     const next = await launch();
@@ -549,15 +547,12 @@ describe("the Cloud Pro popup after the update", () => {
     expect(html).toContain("Upgrade to Cloud Pro"); expect(html).toContain("MausBot Cloud plans from $15/month + tax.");
     for (const gone of ["Free for", "Start free trial", "Claude credit"]) expect(html).not.toContain(gone);
     expect(popupEvents("shown")).toEqual([event("shown", "none", true, "local")]);
-    expect(identifyEmail).not.toHaveBeenCalled();
 
     press("Compare plans"); await flush();
     // Compare plans stays in the app: the Add a Cloud dialog lists every plan.
     expect(f.dispatch).toHaveBeenCalledWith({ type: "openCloudAdd", source: "update_popup" });
     expect(window.ogb?.openExternal).not.toHaveBeenCalled();
-    expect(identifyEmail).toHaveBeenCalledWith("person@example.test");
     expect(popupEvents("see_plans")).toEqual([event("see_plans", "none", true, "local")]);
-    expect(lastOrder(vi.mocked(identifyEmail))).toBeLessThan(lastOrder(vi.mocked(track)));
     expect(render()).toBe("");
     storage.clear(); storage.set(PRODUCT_HUNT_NOTICE, "1"); storage.set(SIMPLE_MODE_PROMPT_KEY, "1");
     expect(await launch(), "the desktop keeps it, not the page's storage").not.toContain(POPUP);
@@ -565,9 +560,7 @@ describe("the Cloud Pro popup after the update", () => {
     vi.clearAllMocks(); fresh(); await launch();
     press("Upgrade to Cloud Pro");
     expect(f.dispatch).toHaveBeenCalledWith({ type: "openCloudAdd", source: "update_popup" });
-    expect(identifyEmail).toHaveBeenCalledWith("person@example.test");
     expect(popupEvents("upgrade")).toEqual([event("upgrade", "none", true, "local")]);
-    expect(lastOrder(vi.mocked(identifyEmail))).toBeLessThan(lastOrder(vi.mocked(track)));
   });
 
   it("a trial or any plan gets Manage plan in Settings → MausBot Cloud, in the app; no Compare plans, never a checkout or the browser", async () => {
@@ -588,7 +581,6 @@ describe("the Cloud Pro popup after the update", () => {
       expect(bridges.cloud.openDashboard, plan).not.toHaveBeenCalled(); expect(window.ogb?.openExternal, plan).not.toHaveBeenCalled();
       expect(bridges.plan.manage, plan).not.toHaveBeenCalled();
       expect(f.dispatch, plan).not.toHaveBeenCalledWith(expect.objectContaining({ type: "openCloudAdd" }));
-      expect(identifyEmail, plan).toHaveBeenCalledWith("person@example.test");
       expect(popupEvents("manage"), plan).toEqual([event("manage", plan, true, "local")]);
       expect(seenOnDesktop(), plan).toEqual([ID]); expect(render(), plan).toBe("");
       expect(bridges.cloud.offer, plan).not.toHaveBeenCalled();
@@ -616,7 +608,6 @@ describe("the Cloud Pro popup after the update", () => {
     expect(seenOnDesktop()).toEqual([ID]);
     expect(popupEvents("manage")).toEqual([event("manage", "pro", true, "my_cloud")]);
     expect(bridges.plan.manage, "never the plan page in the browser").not.toHaveBeenCalled();
-    expect(identifyEmail, "My Cloud's page is not told the email").not.toHaveBeenCalled();
     expect(render()).toBe("");
     expect(await launch(), "and not again on My Cloud").not.toContain(POPUP);
     onThisComputer();
@@ -717,7 +708,6 @@ describe("the Cloud Pro popup after the update", () => {
     }
     expect(popupEvents("not_now")).toEqual([event("not_now", "none", true, "local")]);
     expect(popupEvents("close")).toHaveLength(3);
-    expect(identifyEmail).not.toHaveBeenCalled();
   });
 
   it("an Escape meant for something else leaves it up", async () => {
