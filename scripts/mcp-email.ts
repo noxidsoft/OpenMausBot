@@ -313,7 +313,7 @@ export function runStdio(): Promise<void> {
     void task.finally(() => inFlight.delete(task));
   });
   return new Promise((closed) => rl.on("close", async () => {
-    await Promise.allSettled([...inFlight]);
+    await Promise.allSettled(inFlight);
     await session?.close();
     closed();
   }));
